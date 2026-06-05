@@ -9,7 +9,7 @@
    :alt: Beautiful-Brains logo
 
 .. list-table::
-   :widths: 20 60
+   :widths: 20 600
    :header-rows: 0
 
    * - PyPI
