@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 name = "beautiful-brains"
 version = "0.0.1"
 description = "Create figures and images from NIfTI images, masks, and label maps."
-readme = "README.rst"
+readme = "README.md"
 requires-python = ">=3.10"
 license = "GPL-3.0-only"
 license-files = ["LICENSE"]
@@ -89,7 +89,7 @@ exclude = [
 [tool.hatch.build.targets.sdist]
 only-include = [
   "LICENSE",
-  "README.rst",
+  "README.md",
   "pyproject.toml",
   "src/beautiful_brains",
 ]
