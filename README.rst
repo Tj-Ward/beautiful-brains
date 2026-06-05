@@ -46,7 +46,7 @@ To Do Before Beta Release
 =========================
 
 - ☑ Complete basic feature-set 
-- ☑ Design starter templates
+- ☐ Design starter templates
 - ☐ Add documentation
 - ☐ Set up PyPI
 - ☐ Complete human code review  
