@@ -6,4 +6,5 @@ build/
 *.egg-info/
 output/
 .DS_Store
+*.ipynb*
 *.ipynb
