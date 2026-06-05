@@ -4,7 +4,7 @@
 
 .. Use raw locations for images so they render correctly on PyPI.
 
-.. image:: figures/figure.png
+.. image:: figures/logo.png
    :target: https://github.com/Tj-Ward/beautiful-brains-development/tree/main
    :alt: Beautiful-Brains logo
 
