@@ -1,0 +1,113 @@
+[build-system]
+requires = ["hatchling>=1.24"]
+build-backend = "hatchling.build"
+
+[project]
+name = "beautiful-brains"
+version = "0.0.1"
+description = "Create figures and images from NIfTI images, masks, and label maps."
+readme = "README.rst"
+requires-python = ">=3.10"
+license = "GPL-3.0-only"
+license-files = ["LICENSE"]
+authors = [
+  { name = "Beautiful-Brains contributors" },
+]
+keywords = [
+  "neuroimaging",
+  "nifti",
+  "notebook",
+  "pet",
+  "mri",
+  "quality-control",
+  "visualization",
+]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Framework :: Jupyter",
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Scientific/Engineering :: Image Processing",
+  "Topic :: Scientific/Engineering :: Visualization",
+]
+dependencies = [
+  "antspyx>=0.6",
+  "matplotlib>=3.7",
+  "nibabel>=5.1",
+  "numpy>=1.24",
+  "Pillow>=10.0",
+  "scipy>=1.10",
+]
+
+[project.optional-dependencies]
+brainmask = ["antspynet"]
+notebook = ["ipython>=8.0"]
+video = ["imageio>=2.31", "imageio-ffmpeg>=0.4"]
+dev = ["pytest>=8.0", "ruff>=0.5"]
+publish = ["build>=1.2", "twine>=5.0"]
+
+[project.urls]
+Homepage = "https://github.com/Tj-Ward/beautiful-brains"
+Repository = "https://github.com/Tj-Ward/beautiful-brains"
+Issues = "https://github.com/Tj-Ward/beautiful-brains/issues"
+
+[tool.hatch.build]
+ignore-vcs = true
+exclude = [
+  "/.DS_Store",
+  "/.gitignore",
+  "/**/.DS_Store",
+  "/.ipynb_checkpoints",
+  "/**/.ipynb_checkpoints",
+  "/.pytest_cache",
+  "/**/.pytest_cache",
+  "/.ruff_cache",
+  "/**/.ruff_cache",
+  "/__pycache__",
+  "/**/__pycache__",
+  "/**/*.pyc",
+  "/**/*.pyo",
+  "/bb_feature_test*",
+  "/conda-recipe",
+  "/docs",
+  "/environment.yml",
+  "/examples",
+  "/tests",
+  "/*.bbi",
+  "/*.ipynb",
+  "/*.nii",
+  "/*.nii.gz",
+  "/*.png",
+]
+
+[tool.hatch.build.targets.sdist]
+only-include = [
+  "LICENSE",
+  "README.rst",
+  "pyproject.toml",
+  "src/beautiful_brains",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/beautiful_brains"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+extend-exclude = [
+  "*.ipynb",
+  ".ipynb_checkpoints",
+  "__pycache__",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]

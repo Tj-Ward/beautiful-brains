@@ -1,0 +1,1 @@
+"""Packaged Beautiful-Brains assets."""
