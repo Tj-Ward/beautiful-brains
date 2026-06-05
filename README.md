@@ -32,7 +32,7 @@ pip install beautiful-brains
 
 ## Usage
 
-See the [demonstration notebook](https://github.com/Tj-Ward/beautiful-brains/blob/main/Demonstration.ipynb).
+See the [demonstration notebook](https://github.com/Tj-Ward/beautiful-brains/blob/main/Demonstration.md).
 
 ## Support
 
