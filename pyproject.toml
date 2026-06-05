@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "beautiful-brains"
-version = "0.0.1"
+version = "0.0.2"
 description = "Create figures and images from NIfTI images, masks, and label maps."
 readme = "README.md"
 requires-python = ">=3.10"
