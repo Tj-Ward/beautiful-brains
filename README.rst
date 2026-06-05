@@ -8,28 +8,7 @@
    :target: https://github.com/Tj-Ward/beautiful-brains/tree/main
    :alt: Beautiful-Brains logo
 
-.. raw:: html
 
-  <div align="center">
-    <table>
-      <tr>
-        <td align="center">PyPI</td>
-        <td align="center">
-          <a href="https://example.com/TODO/pypi">
-            <img src="https://img.shields.io/pypi/v/beautiful-brains.svg" alt="PyPI version">
-          </a>
-        </td>
-      </tr>
-      <tr>
-        <td align="center">License &amp; DOI</td>
-        <td align="center">
-          <a href="LICENSE">
-            <img src="https://img.shields.io/pypi/l/beautiful-brains.svg" alt="License">
-          </a>
-        </td>
-      </tr>
-    </table>
-  </div>
 Beautiful Brains
 =========================
 Beautiful-Brains creates notebook-friendly NIfTI figures from intensity images,
