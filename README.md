@@ -1,6 +1,7 @@
 [![Beautiful-Brains logo](https://raw.githubusercontent.com/Tj-Ward/beautiful-brains/main/figures/logo.png)](https://github.com/Tj-Ward/beautiful-brains)
 
-# Beautiful Brains
+# Beautiful ![Beautiful-Brains](https://github.com/Tj-Ward/beautiful-brains/blob/main/figures/video.webp) Brains 
+
 
   [![PyPI version](https://img.shields.io/pypi/v/beautiful-brains.svg)](https://pypi.org/project/beautiful-brains/)
   [![License](https://img.shields.io/pypi/l/beautiful-brains.svg)](https://pypi.org/project/beautiful-brains/)
