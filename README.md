@@ -1,6 +1,6 @@
 [![Beautiful-Brains logo](https://raw.githubusercontent.com/Tj-Ward/beautiful-brains/main/figures/logo.png)](https://github.com/Tj-Ward/beautiful-brains)
 
-# Beautiful ![Beautiful-Brains](https://github.com/Tj-Ward/beautiful-brains/blob/main/figures/video.webp) Brains 
+# Beautiful Brains 
 
 
   [![PyPI version](https://img.shields.io/pypi/v/beautiful-brains.svg)](https://pypi.org/project/beautiful-brains/)
@@ -12,7 +12,9 @@ Beautiful-Brains creates notebook-friendly NIfTI figures from intensity images, 
 
 Beautiful-Brains provides a Python toolkit for loading, smoothing, transforming, coregistering, slicing, and compositing NIfTI images in Jupyter notebooks and Python scripts. Images are read with [NiBabel](https://nipy.org/nibabel/), processed with [NumPy](https://numpy.org/) and [SciPy](https://scipy.org/), and rendered with [Pillow](https://pillow.readthedocs.io/en/stable/). Registration, masking, and bias-field correction are performed with ANTsPy.
 
-Beautiful-Brains began as a series of personal utilities and scripts.
+![Beautiful-Brains](https://github.com/Tj-Ward/beautiful-brains/blob/main/figures/video.webp)
+
+Beautiful-Brains was created from a collection of personal scripts. These tools saved me a lot of time making figures for presentations that are visually pleasing. I also used tools like these to generate QC images for automated neuroimaging pipelines. 
 
 ## To Do Before Beta Release
 
@@ -24,9 +26,7 @@ Beautiful-Brains began as a series of personal utilities and scripts.
 
 ## AI Disclaimer
 
-This project began as a set of human-coded utilities for private use. Claude Code (Sonnet 4.6) and Codex (GPT-5.5) were used to convert a working codebase into a Python package. These tools helped redesign the code and build the package as of the first alpha release. Future development will continue using AI-assisted coding tools.
-
-All code merged into a stable release must undergo human review.
+This project originated as a collection of human-coded scripts. Claude Code (Sonnet 4.6) and Codex (GPT-5.5) were used to convert a working codebase into a Python package. These AI tools restructured and rewrote nearly everything. Future development will continue using AI-assisted coding tools.
 
 ## Installation
 
@@ -35,6 +35,7 @@ Install the current [Beautiful-Brains release](https://pypi.org/project/beautifu
 ```bash
 pip install beautiful-brains
 ```
+![Beautiful-Brains](https://github.com/Tj-Ward/beautiful-brains/blob/main/figures/video.webp) 
 
 ## Usage
 
@@ -49,6 +50,4 @@ Documentation will be expanded after the project leaves alpha.
 ## License
 
 Beautiful-Brains is licensed under the terms of the [GNU General Public License version 3](https://www.gnu.org/licenses/gpl-3.0.en.html). For more information, see the [LICENSE](https://github.com/Tj-Ward/beautiful-brains/blob/main/LICENSE) file.
-::: 
-
-![Beautiful-Brains](https://github.com/Tj-Ward/beautiful-brains/blob/main/figures/video.webp)
+:::
