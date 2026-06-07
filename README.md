@@ -32,7 +32,7 @@ All code merged into a stable release must undergo human review.
 Install the current [Beautiful-Brains release](https://pypi.org/project/beautiful-brains/) with `pip`:
 
 ```bash
-pip install beautiful-brains
+pip install beautiful_brains
 ```
 
 ## Usage
