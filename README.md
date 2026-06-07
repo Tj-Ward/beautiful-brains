@@ -16,10 +16,6 @@ Beautiful-Brains provides a Python toolkit for loading, smoothing, transforming,
 
 Beautiful-Brains was created from a collection of personal scripts. These tools saved me a lot of time making figures for presentations that are visually pleasing. I also used these features to create lightbox-style QC images for automated neuroimaging pipelines.
 
-## AI Disclaimer
-
-This project originated as a collection of human-coded scripts. Claude Code (Sonnet 4.6) and Codex (GPT-5.5) were used to convert a working codebase into a Python package. These AI tools restructured and rewrote nearly everything. Future development will continue using AI-assisted coding tools.
-
 ## Installation
 
 Install the current [Beautiful-Brains release](https://pypi.org/project/beautiful-brains/) with `pip`:
@@ -27,11 +23,14 @@ Install the current [Beautiful-Brains release](https://pypi.org/project/beautifu
 ```bash
 pip install beautiful-brains
 ```
-![Beautiful-Brains](https://github.com/Tj-Ward/beautiful-brains/blob/main/figures/video.webp) 
 
 ## Usage
 
 See the [demonstration notebook](https://github.com/Tj-Ward/beautiful-brains/blob/main/Demonstration.md).
+
+## AI Disclaimer
+
+This project originated as a collection of human-coded scripts. Claude Code (Sonnet 4.6) and Codex (GPT-5.5) were used to convert a working codebase into a Python package. These AI tools restructured and rewrote nearly everything. Future development will continue using AI-assisted coding tools.
 
 ## Support
 
