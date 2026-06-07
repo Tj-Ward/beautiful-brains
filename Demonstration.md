@@ -30,6 +30,7 @@ import inspect
 ```python
 MRI_PATH = 'MPRAGE.nii.gz'
 PET_PATH = 'FBB.nii'
+PET_DYNAMIC_PATH = 'FBB_dynamic.nii'
 
 TEMPLATE_PATH = 'MNI152_T1_1mm.nii.gz'
 ```
@@ -58,13 +59,56 @@ MRI = bb.load(
 
 PET = bb.load(
   PET_PATH,
-  colormap="soft-nih",
+  colormap="nih",
+  interp='NEAREST',
+  scale=1,
+  sharpen=0,
+  threshold=(100,10000)
+)
+
+PET_dynamic = bb.load(
+  PET_DYNAMIC_PATH,
+  colormap="nih",
   interp='NEAREST',
   scale=1,
   sharpen=0,
   threshold=(100,10000)
 )
 ```
+
+
+    ---------------------------------------------------------------------------
+
+    ImageGeometryError                        Traceback (most recent call last)
+
+    Cell In[8], line 20
+         16   sharpen=0,
+         17   threshold=(100,10000)
+         18 )
+         19 
+    ---> 20 PET_dynamic = bb.load(
+         21   PET_DYNAMIC_PATH,
+         22   colormap="nih",
+         23   interp='NEAREST',
+
+
+    File ~/Documents/QC_images/beautiful-brains/src/beautiful_brains/image.py:566, in load(path, LUT, colormap, threshold, indices, scale, interp, sharpen, bias_correction, debug)
+        563     return _load_bbi(path, debug=debug)
+        565 _debug_print(debug, f"loading image: {path}")
+    --> 566 volume = load_volume(path)
+        567 _debug_print(debug, f"loaded image shape: {volume.data.shape}")
+        568 parsed_indices = _parse_indices(indices)
+
+
+    File ~/Documents/QC_images/beautiful-brains/src/beautiful_brains/io.py:52, in load_volume(path, canonical)
+         50 data = np.asarray(image.get_fdata(dtype=np.float32))
+         51 if data.ndim != 3:
+    ---> 52     raise ImageGeometryError(f"Only 3D images are supported right now: {path}")
+         53 return Volume(path=path, image=image, data=data, affine=np.asarray(image.affine))
+
+
+    ImageGeometryError: Only 3D images are supported right now: FBB_dynamic.nii
+
 
 ## Transformations
 
@@ -536,6 +580,72 @@ img
 
 ```
 
+### Create movies 
+
+
+```python
+print(inspect.signature(bb.make_video))
+```
+
+    (frames: 'Iterable[Any]', timing: 'float', filepath: 'str | Path') -> 'Path'
+
+
+
+```python
+
+```
+
+
+
+
+    array([50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66,
+           67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83,
+           84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99])
+
+
+
+
+```python
+slices[:-1:][::-1]
+```
+
+
+
+
+    array([99, 98, 97, 96, 95, 94, 93, 92, 91, 90, 89, 88, 87, 86, 85, 84, 83,
+           82, 81, 80, 79, 78, 77, 76, 75, 74, 73, 72, 71, 70, 69, 68, 67, 66,
+           65, 64, 63, 62, 61, 60, 59, 58, 57, 56, 55, 54, 53, 52, 51, 50])
+
+
+
+
+```python
+Ratio = PET.slice(120,'axial').size
+slices = list(np.arange(50,101,1))
+slices.extend(slices[:-1:][::-1])
+time = 0.1
+frames = []
+for i,slice_i in enumerate(slices):
+    fig = bb.bbfigure(
+      size=3,
+      grid=(1, 1),
+      dpi=300,
+        box_ratio=(Ratio[0]/Ratio[1]),
+      background=(0, 0, 0, 0),
+    )
+    fig[0, 0] = PET.slice(int(slice_i), "axial")
+    frames.append(fig)
+
+bb.make_video(frames,time,'video.webp')
+```
+
+
+
+
+    PosixPath('video.webp')
+
+
+
 ### You can use any matplotlib ListedColormap or make your own
 
 
@@ -559,7 +669,7 @@ bb.colorbar(colormap='nih', height=50, length=500)
 
 
     
-![png](Demonstration_files/Demonstration_62_0.png)
+![png](Demonstration_files/Demonstration_67_0.png)
     
 
 
@@ -574,7 +684,7 @@ bb.colorbar(colormap='soft-nih', height=50, length=500)
 
 
     
-![png](Demonstration_files/Demonstration_63_0.png)
+![png](Demonstration_files/Demonstration_68_0.png)
     
 
 
@@ -588,7 +698,7 @@ bb.colorbar(colormap='gray', height=50, length=500)
 
 
     
-![png](Demonstration_files/Demonstration_64_0.png)
+![png](Demonstration_files/Demonstration_69_0.png)
     
 
 
@@ -602,7 +712,7 @@ bb.colorbar(colormap='viridis', height=50, length=500)
 
 
     
-![png](Demonstration_files/Demonstration_65_0.png)
+![png](Demonstration_files/Demonstration_70_0.png)
     
 
 
@@ -616,7 +726,7 @@ bb.colorbar(colormap='plasma', height=50, length=500)
 
 
     
-![png](Demonstration_files/Demonstration_66_0.png)
+![png](Demonstration_files/Demonstration_71_0.png)
     
 
 
@@ -630,7 +740,7 @@ bb.colorbar(colormap='jet', height=50, length=500)
 
 
     
-![png](Demonstration_files/Demonstration_67_0.png)
+![png](Demonstration_files/Demonstration_72_0.png)
     
 
 
@@ -644,7 +754,7 @@ bb.colorbar(colormap='hot', height=50, length=500)
 
 
     
-![png](Demonstration_files/Demonstration_68_0.png)
+![png](Demonstration_files/Demonstration_73_0.png)
     
 
 
@@ -658,7 +768,7 @@ bb.colorbar(colormap='bone', height=50, length=500)
 
 
     
-![png](Demonstration_files/Demonstration_69_0.png)
+![png](Demonstration_files/Demonstration_74_0.png)
     
 
 
@@ -672,7 +782,7 @@ bb.colorbar(colormap='copper', height=50, length=500)
 
 
     
-![png](Demonstration_files/Demonstration_70_0.png)
+![png](Demonstration_files/Demonstration_75_0.png)
     
 
 
