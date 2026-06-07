@@ -14,15 +14,7 @@ Beautiful-Brains provides a Python toolkit for loading, smoothing, transforming,
 
 ![Beautiful-Brains](https://github.com/Tj-Ward/beautiful-brains/blob/main/figures/video.webp)
 
-Beautiful-Brains was created from a collection of personal scripts. These tools saved me a lot of time making figures for presentations that are visually pleasing. I also used tools like these to generate QC images for automated neuroimaging pipelines. 
-
-## To Do Before Beta Release
-
-* [x] Complete basic feature set
-* [ ] Design starter templates
-* [ ] Add documentation
-* [ ] Set up PyPI
-* [ ] Complete human code review
+Beautiful-Brains was created from a collection of personal scripts. These tools saved me a lot of time making figures for presentations that are visually pleasing. I also used these features to create lightbox-style QC images for automated neuroimaging pipelines.
 
 ## AI Disclaimer
 
