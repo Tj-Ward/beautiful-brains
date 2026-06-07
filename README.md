@@ -50,3 +50,4 @@ Documentation will be expanded after the project leaves alpha.
 Beautiful-Brains is licensed under the terms of the [GNU General Public License version 3](https://www.gnu.org/licenses/gpl-3.0.en.html). For more information, see the [LICENSE](https://github.com/Tj-Ward/beautiful-brains/blob/main/LICENSE) file.
 ::: 
 
+![Beautiful-Brains](https://github.com/Tj-Ward/beautiful-brains/blob/main/figures/video.webp)
