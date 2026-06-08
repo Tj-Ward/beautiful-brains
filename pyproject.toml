@@ -1,10 +1,10 @@
 [build-system]
-requires = ["hatchling>=1.24"]
+requires = ["hatchling>=1.24", "hatch-vcs>=0.4"]
 build-backend = "hatchling.build"
 
 [project]
 name = "beautiful-brains"
-version = "0.0.2"
+dynamic = ["version"]
 description = "Create figures and images from NIfTI images, masks, and label maps."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -56,6 +56,13 @@ publish = ["build>=1.2", "twine>=5.0"]
 Homepage = "https://github.com/Tj-Ward/beautiful-brains"
 Repository = "https://github.com/Tj-Ward/beautiful-brains"
 Issues = "https://github.com/Tj-Ward/beautiful-brains/issues"
+
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.version.raw-options]
+version_scheme = "guess-next-dev"
+local_scheme = "no-local-version"
 
 [tool.hatch.build]
 ignore-vcs = true
