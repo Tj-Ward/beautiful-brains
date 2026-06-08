@@ -7,4 +7,4 @@ build/
 output/
 .DS_Store
 *.ipynb*
-*.ipynb
+*ipynb*
