@@ -18,6 +18,7 @@ from beautiful_brains.figure import BBFigure, BBPanel, bbfigure, make_video
 from beautiful_brains.image import (
     BBImage,
     TransformRecord,
+    align_timeseries,
     apply_transform,
     create_brainmask,
     create_mask,
@@ -39,6 +40,7 @@ __all__ = [
     "BBImage",
     "BBPanel",
     "TransformRecord",
+    "align_timeseries",
     "apply_transform",
     "bbfigure",
     "colorbar",

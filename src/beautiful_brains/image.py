@@ -112,6 +112,7 @@ class BBImage:
     crop_info: CropInfo | None = None
     mask: np.ndarray | None = None
     transform_info: TransformRecord | None = None
+    timeseries_transform_info: tuple[TransformRecord | None, ...] | None = None
     name: str | None = None
     kind: ImageKind = "intensity"
     scale: float = 3.0
@@ -150,7 +151,7 @@ class BBImage:
         object.__setattr__(
             self,
             "crop_info",
-            validate_crop_info(self.crop_info, shape=self.volume.data.shape),
+            validate_crop_info(self.crop_info, shape=_spatial_shape(self.volume.data)),
         )
         object.__setattr__(
             self,
@@ -181,6 +182,14 @@ class BBImage:
         object.__setattr__(self, "sharpen", _validate_sharpen(self.sharpen))
         if self.kind == "delineation" and self.sharpen:
             raise ConfigError("sharpen is only supported for intensity images.")
+        object.__setattr__(
+            self,
+            "timeseries_transform_info",
+            _normalize_timeseries_transform_info(
+                self.timeseries_transform_info,
+                n_frames=_frame_count(self.volume.data),
+            ),
+        )
         object.__setattr__(self, "_bb_initialized", True)
 
     def __repr__(self) -> str:
@@ -194,6 +203,7 @@ class BBImage:
             f"name={self.name!r}, "
             f"kind={self.kind!r}, "
             f"shape={self.volume.data.shape}, "
+            f"frames={self.n_frames!r}, "
             f"dtype={self.volume.data.dtype}, "
             f"colormap={colormap_name!r}, "
             f"LUT={LUT_name!r}, "
@@ -210,19 +220,47 @@ class BBImage:
     def _repr_pretty_(self, printer: Any, cycle: bool) -> None:
         printer.text("BBImage(...)" if cycle else repr(self))
 
+    @property
+    def is_timeseries(self) -> bool:
+        """Return True when this image contains more than one 3D frame."""
+
+        return _frame_count(self.volume.data) > 1
+
+    @property
+    def n_frames(self) -> int:
+        """Return the number of 3D frames represented by this image."""
+
+        return _frame_count(self.volume.data)
+
     def slice(
         self,
         index: int,
         plane: Plane = "axial",
         *,
+        frame: int = 0,
+        scale: float | None = None,
         interp: Any | None = None,
+        sharpen: int | None = None,
+        colormap: Any | None = None,
+        LUT: str | Path | None = None,
+        threshold: tuple[float, float] | None = None,
+        crop_info: Sequence[Sequence[int]] | None = None,
+        mask: np.ndarray | None = None,
         alpha: float | None = None,
         outline: bool | int | None = None,
     ):
         return self.render_slice(
             index,
             plane=plane,
+            frame=frame,
+            scale=scale,
             interp=interp,
+            sharpen=sharpen,
+            colormap=colormap,
+            LUT=LUT,
+            threshold=threshold,
+            crop_info=crop_info,
+            mask=mask,
             alpha=alpha,
             outline=outline,
         )
@@ -232,18 +270,38 @@ class BBImage:
         index: int,
         *,
         plane: Plane = "axial",
+        frame: int = 0,
+        scale: float | None = None,
         interp: Any | None = None,
+        sharpen: int | None = None,
+        colormap: Any | None = None,
+        LUT: str | Path | None = None,
+        threshold: tuple[float, float] | None = None,
+        crop_info: Sequence[Sequence[int]] | None = None,
+        mask: np.ndarray | None = None,
         alpha: float | None = None,
         outline: bool | int | None = None,
     ):
         source = self.reslice() if _has_pending_transform(self.transform_info) else self
+        source = _image_with_slice_overrides(
+            source,
+            scale=scale,
+            interp=interp,
+            sharpen=sharpen,
+            colormap=colormap,
+            LUT=LUT,
+            threshold=threshold,
+            crop_info=crop_info,
+            mask=mask,
+        )
+        resolved_frame = _validate_frame_index(frame, data=source.volume.data)
         axis = AXIS_BY_PLANE[plane]
         shape = _display_volume_shape(source)
         if index < 0 or index >= shape[axis]:
             raise IndexError(
                 f"Slice {index} is outside {plane} axis with size {shape[axis]}."
             )
-        slice_rgba = _render_slice_rgba(source, axis=axis, index=index, interp=interp)
+        slice_rgba = _render_slice_rgba(source, axis=axis, index=index, frame=resolved_frame)
         if outline:
             slice_rgba = _outline_slice(slice_rgba, width=1 if outline is True else int(outline))
         slice_rgba = _multiply_alpha(slice_rgba, 1.0 if alpha is None else alpha)
@@ -297,6 +355,7 @@ class BBImage:
             crop_info=self.crop_info if crop_info == "keep" else crop_info,
             mask=resolved_mask,
             transform_info=self.transform_info if transform_info == "keep" else transform_info,
+            timeseries_transform_info=self.timeseries_transform_info,
             name=self.name,
             kind=self.kind,
             scale=self.scale,
@@ -321,6 +380,9 @@ class BBImage:
             "name": self.name,
             "kind": self.kind,
             "transform_info": _transform_metadata(self.transform_info),
+            "timeseries_transform_info": _timeseries_transform_metadata(
+                self.timeseries_transform_info
+            ),
             "scale": self.scale,
             "interp": self.interp,
             "sharpen": self.sharpen,
@@ -359,8 +421,12 @@ def transform(
 
     if not isinstance(source, BBImage):
         raise ConfigError("transform() source must be a BBImage.")
+    if source.volume.data.ndim != 3:
+        raise ConfigError("transform() requires a 3D image. Use align_timeseries() for 4D data.")
     resolved_warp = normalize_ants_warp(warp)
     fixed_volume = _target_volume(target)
+    if fixed_volume.data.ndim != 3:
+        raise ConfigError("transform() target must be a 3D image.")
     result = register_ants_transform(
         fixed=fixed_volume,
         moving=source.volume,
@@ -382,6 +448,79 @@ def transform(
     return _image_with_pending_transform(source, transform_info=transform_info)
 
 
+def align_timeseries(
+    source: BBImage,
+    *,
+    warp: str = "Rigid",
+    interp: Any | None = None,
+    cache_dir: str | Path | None = None,
+    debug: bool = False,
+) -> BBImage:
+    """Rigidly align every 3D frame in a 4D image to the first frame."""
+
+    if not isinstance(source, BBImage):
+        raise ConfigError("align_timeseries() source must be a BBImage.")
+    if source.volume.data.ndim != 4:
+        raise ConfigError("align_timeseries() requires a 4D timeseries image.")
+    resolved_warp = normalize_ants_warp(warp)
+    if resolved_warp != "Rigid":
+        raise ConfigError("align_timeseries() only supports rigid-body alignment.")
+
+    n_frames = _frame_count(source.volume.data)
+    print(
+        "Caution: align_timeseries() can be slow because it computes one rigid-body "
+        "alignment for every non-reference frame in the timeseries."
+    )
+    fixed = _frame_image(source, frame=0, name_suffix="frame0")
+    aligned_frames = [np.asarray(fixed.volume.data, dtype=np.float32)]
+    transform_records: list[TransformRecord | None] = [None]
+    resolved_interp = interp if interp is not None else source.interp
+    for frame in range(1, n_frames):
+        moving = _frame_image(source, frame=frame, name_suffix=f"frame{frame}")
+        transform_record = transform(
+            source=moving,
+            target=fixed,
+            warp="Rigid",
+            cache_dir=cache_dir,
+            return_transform=True,
+            debug=debug,
+        )
+        if not isinstance(transform_record, TransformRecord):
+            raise ConfigError("align_timeseries() expected transform() to return TransformRecord.")
+        transformed = apply_transform(source=moving, matrix=transform_record).reslice(
+            interp=resolved_interp,
+            cache_dir=cache_dir,
+            debug=debug,
+        )
+        aligned_frames.append(np.asarray(transformed.volume.data, dtype=np.float32))
+        transform_records.append(transform_record)
+
+    aligned_data = np.stack(aligned_frames, axis=3).astype(np.float32)
+    volume = Volume(
+        path=source.volume.path,
+        image=source.volume.image,
+        data=aligned_data,
+        affine=source.volume.affine,
+    )
+    return BBImage(
+        path=source.path,
+        volume=volume,
+        LUT=source.LUT,
+        colormap=source.colormap,
+        indices=source.indices,
+        threshold=source.threshold,
+        crop_info=source.crop_info,
+        mask=source.mask,
+        transform_info=source.transform_info,
+        timeseries_transform_info=tuple(transform_records),
+        name=source.name,
+        kind=source.kind,
+        scale=source.scale,
+        interp=source.interp,
+        sharpen=source.sharpen,
+    )
+
+
 def apply_transform(
     *,
     source: BBImage,
@@ -391,6 +530,8 @@ def apply_transform(
 
     if not isinstance(source, BBImage):
         raise ConfigError("apply_transform() source must be a BBImage.")
+    if source.volume.data.ndim != 3:
+        raise ConfigError("apply_transform() requires a 3D image.")
     transform_info = _pending_transform_record(
         _as_transform_record(matrix),
     )
@@ -415,8 +556,11 @@ def crop(
         if _has_pending_transform(source.transform_info)
         else source
     )
+    crop_source_volume = (
+        _frame_volume(working, frame=0) if working.volume.data.ndim == 4 else working.volume
+    )
     result = crop_volume(
-        working.volume,
+        crop_source_volume,
         how=how,
         pad=pad,
         crop_info=crop_info,
@@ -446,9 +590,12 @@ def create_mask(
 
     if not isinstance(source, BBImage):
         raise ConfigError("create_mask() source must be a BBImage.")
+    mask_source_volume = (
+        _frame_volume(source, frame=0) if source.volume.data.ndim == 4 else source.volume
+    )
     mask = _validate_mask(
         create_mask_array(
-            source.volume,
+            mask_source_volume,
             pad=pad,
             low_thresh=low_thresh,
             max_thresh=max_thresh,
@@ -456,7 +603,7 @@ def create_mask(
             cache_dir=cache_dir,
             debug=debug,
         ),
-        shape=source.volume.data.shape,
+        shape=_spatial_shape(source.volume.data),
     )
     if enhance:
         mask = _enhance_mask(mask, affine=source.volume.affine)
@@ -477,9 +624,12 @@ def create_brainmask(
 
     if not isinstance(source, BBImage):
         raise ConfigError("create_brainmask() source must be a BBImage.")
+    mask_source_volume = (
+        _frame_volume(source, frame=0) if source.volume.data.ndim == 4 else source.volume
+    )
     return _validate_mask(
         create_brainmask_array(
-            source.volume,
+            mask_source_volume,
             modality=modality,
             threshold=threshold,
             pad=pad,
@@ -487,7 +637,7 @@ def create_brainmask(
             cache_dir=cache_dir,
             debug=debug,
         ),
-        shape=source.volume.data.shape,
+        shape=_spatial_shape(source.volume.data),
     ).astype(np.float16, copy=True)
 
 
@@ -498,8 +648,21 @@ def smooth_image(*, source: BBImage, kernel: float | Sequence[float]) -> BBImage
         raise ConfigError("smooth_image() source must be a BBImage.")
     if source.kind != "intensity":
         raise ConfigError("smooth_image() is only supported for scalar intensity images.")
-    fwhm = _smooth_kernel_arg(kernel, ndim=source.volume.data.ndim, name="smooth_image()")
-    smoothed = smooth_fwhm(source.volume.data, source.volume.affine, fwhm).astype(np.float32)
+    fwhm = _smooth_kernel_arg(kernel, ndim=3, name="smooth_image()")
+    if source.volume.data.ndim == 4:
+        smoothed = np.stack(
+            [
+                smooth_fwhm(
+                    _frame_data(source.volume.data, frame=frame),
+                    source.volume.affine,
+                    fwhm,
+                )
+                for frame in range(source.n_frames)
+            ],
+            axis=3,
+        ).astype(np.float32)
+    else:
+        smoothed = smooth_fwhm(source.volume.data, source.volume.affine, fwhm).astype(np.float32)
     volume = Volume(
         path=source.volume.path,
         image=source.volume.image,
@@ -626,6 +789,9 @@ def _load_bbi(path: Path, *, debug: bool = False) -> BBImage:
     transform_info = _transform_from_metadata(
         metadata.get("transform_info") or {},
     )
+    timeseries_transform_info = _timeseries_transform_from_metadata(
+        metadata.get("timeseries_transform_info")
+    )
     volume = volume_from_data(path, data, affine)
     LUT_raw = metadata.get("LUT")
     LUT = Path(LUT_raw) if LUT_raw else None
@@ -637,7 +803,7 @@ def _load_bbi(path: Path, *, debug: bool = False) -> BBImage:
     )
     indices = _optional_tuple(metadata.get("indices"))
     threshold = _optional_tuple(metadata.get("threshold"))
-    crop_info = validate_crop_info(metadata.get("crop_info"), shape=data.shape)
+    crop_info = validate_crop_info(metadata.get("crop_info"), shape=_spatial_shape(data))
     _debug_print(debug, f"loaded BBI shape: {data.shape}")
     return BBImage(
         path=path,
@@ -649,6 +815,7 @@ def _load_bbi(path: Path, *, debug: bool = False) -> BBImage:
         crop_info=crop_info,
         mask=mask,
         transform_info=transform_info,
+        timeseries_transform_info=timeseries_transform_info,
         name=metadata.get("name") or path.name,
         kind=kind,
         scale=metadata.get("scale", 3.0),
@@ -698,16 +865,130 @@ def _parse_indices(value: Sequence[int] | str | None) -> tuple[int, ...] | None:
     return tuple(int(item) for item in value)
 
 
+def _spatial_shape(data: np.ndarray) -> tuple[int, int, int]:
+    shape = tuple(np.asarray(data).shape)
+    if len(shape) == 3:
+        return shape  # type: ignore[return-value]
+    if len(shape) == 4:
+        return shape[:3]  # type: ignore[return-value]
+    raise ConfigError("Beautiful-Brains images must be 3D or 4D.")
+
+
+def _frame_count(data: np.ndarray) -> int:
+    ndim = np.asarray(data).ndim
+    if ndim == 3:
+        return 1
+    if ndim == 4:
+        return int(np.asarray(data).shape[3])
+    raise ConfigError("Beautiful-Brains images must be 3D or 4D.")
+
+
+def _validate_frame_index(frame: int, *, data: np.ndarray) -> int:
+    try:
+        value = int(frame)
+    except (TypeError, ValueError) as exc:
+        raise ConfigError("frame must be an integer timeseries index.") from exc
+    if value != frame:
+        raise ConfigError("frame must be an integer timeseries index.")
+    n_frames = _frame_count(data)
+    if value < 0 or value >= n_frames:
+        raise IndexError(f"Frame {value} is outside timeseries with {n_frames} frame(s).")
+    return value
+
+
+def _frame_data(data: np.ndarray, *, frame: int) -> np.ndarray:
+    values = np.asarray(data)
+    if values.ndim == 3:
+        return values
+    return values[..., frame]
+
+
+def _frame_mask(mask: np.ndarray, *, frame: int) -> np.ndarray:
+    values = np.asarray(mask)
+    if values.ndim == 3:
+        return values
+    return values[..., frame]
+
+
+def _frame_volume(source: BBImage, *, frame: int) -> Volume:
+    return Volume(
+        path=source.volume.path,
+        image=source.volume.image,
+        data=np.asarray(_frame_data(source.volume.data, frame=frame), dtype=np.float32),
+        affine=source.volume.affine,
+    )
+
+
+def _frame_image(source: BBImage, *, frame: int, name_suffix: str) -> BBImage:
+    resolved_frame = _validate_frame_index(frame, data=source.volume.data)
+    mask = None
+    if source.mask is not None:
+        mask = np.asarray(_frame_mask(source.mask, frame=resolved_frame), dtype=np.float16)
+    return BBImage(
+        path=source.path,
+        volume=_frame_volume(source, frame=resolved_frame),
+        LUT=source.LUT,
+        colormap=source.colormap,
+        indices=source.indices,
+        threshold=source.threshold,
+        crop_info=source.crop_info,
+        mask=mask,
+        transform_info=None,
+        name=f"{source.name or source.path.name}:{name_suffix}",
+        kind=source.kind,
+        scale=source.scale,
+        interp=source.interp,
+        sharpen=source.sharpen,
+    )
+
+
+def _image_with_slice_overrides(
+    source: BBImage,
+    *,
+    scale: float | None,
+    interp: Any | None,
+    sharpen: int | None,
+    colormap: Any | None,
+    LUT: str | Path | None,
+    threshold: tuple[float, float] | None,
+    crop_info: Sequence[Sequence[int]] | None,
+    mask: np.ndarray | None,
+) -> BBImage:
+    if all(
+        value is None
+        for value in (scale, interp, sharpen, colormap, LUT, threshold, crop_info, mask)
+    ):
+        return source
+    return BBImage(
+        path=source.path,
+        volume=source.volume,
+        LUT=source.LUT if LUT is None else LUT,
+        colormap=source.colormap if colormap is None else colormap,
+        indices=source.indices,
+        threshold=source.threshold if threshold is None else threshold,
+        crop_info=source.crop_info if crop_info is None else crop_info,
+        mask=source.mask if mask is None else mask,
+        transform_info=source.transform_info,
+        timeseries_transform_info=source.timeseries_transform_info,
+        name=source.name,
+        kind=source.kind,
+        scale=source.scale if scale is None else scale,
+        interp=source.interp if interp is None else interp,
+        sharpen=source.sharpen if sharpen is None else sharpen,
+    )
+
+
 def _render_slice_rgba(
     source: BBImage,
     *,
     axis: int,
     index: int,
-    interp: Any | None = None,
+    frame: int,
 ) -> np.ndarray:
-    display_interp = _slice_display_interp(source, interp)
+    display_interp = _slice_display_interp(source, None)
+    frame_data = _frame_data(source.volume.data, frame=frame)
     data_slice = _take_display_slice(
-        source.volume.data,
+        frame_data,
         axis=axis,
         index=index,
         crop_info=source.crop_info,
@@ -724,8 +1005,9 @@ def _render_slice_rgba(
     )
     display_mask = None
     if source.mask is not None:
+        frame_mask = _frame_mask(source.mask, frame=frame)
         mask_slice = _take_display_slice(
-            source.mask,
+            frame_mask,
             axis=axis,
             index=index,
             crop_info=source.crop_info,
@@ -924,8 +1206,8 @@ def _coerce_editable_field(image: BBImage, *, name: str, value: Any) -> Any:
 
 def _crop_info_reference_shape(image: BBImage) -> tuple[int, ...]:
     if _has_pending_transform(image.transform_info):
-        return _template_volume_from_record(image.transform_info).data.shape
-    return image.volume.data.shape
+        return _spatial_shape(_template_volume_from_record(image.transform_info).data)
+    return _spatial_shape(image.volume.data)
 
 
 def _validate_threshold(value: tuple[float, float] | None) -> tuple[float, float] | None:
@@ -960,8 +1242,11 @@ def _normalize_mask(mask: np.ndarray | None, *, shape: tuple[int, ...]) -> np.nd
 
 def _validate_mask(mask: np.ndarray, *, shape: tuple[int, ...]) -> np.ndarray:
     mask_array = np.asarray(mask)
-    if mask_array.shape != shape:
-        raise ConfigError("mask must have the same shape as the image data.")
+    valid_shapes = {tuple(shape)}
+    if len(shape) == 4:
+        valid_shapes.add(tuple(shape[:3]))
+    if tuple(mask_array.shape) not in valid_shapes:
+        raise ConfigError("mask must have the same shape as the image data or its 3D frame shape.")
     if not np.all(np.isfinite(mask_array)):
         raise ConfigError("mask values must be finite.")
     if np.any((mask_array < 0) | (mask_array > 1)):
@@ -1043,7 +1328,7 @@ def _take_display_slice(
 
 def _display_volume_shape(source: BBImage) -> tuple[int, ...]:
     if source.crop_info is None:
-        return source.volume.data.shape
+        return _spatial_shape(source.volume.data)
     return tuple(stop - start for start, stop in source.crop_info)
 
 
@@ -1195,6 +1480,38 @@ def _transform_from_metadata(metadata: dict[str, Any]) -> TransformRecord | None
     )
 
 
+def _timeseries_transform_from_metadata(value: object) -> tuple[TransformRecord | None, ...] | None:
+    if value is None:
+        return None
+    if not isinstance(value, list):
+        raise ConfigError("timeseries_transform_info must be a list.")
+    records: list[TransformRecord | None] = []
+    for item in value:
+        if item is None:
+            records.append(None)
+        elif isinstance(item, dict):
+            records.append(_transform_from_metadata(item))
+        else:
+            raise ConfigError("timeseries_transform_info entries must be transform metadata.")
+    return tuple(records)
+
+
+def _normalize_timeseries_transform_info(
+    value: tuple[TransformRecord | None, ...] | None,
+    *,
+    n_frames: int,
+) -> tuple[TransformRecord | None, ...] | None:
+    if value is None:
+        return None
+    records = tuple(value)
+    if len(records) != n_frames:
+        raise ConfigError("timeseries_transform_info length must match the number of frames.")
+    for record in records:
+        if record is not None and not isinstance(record, TransformRecord):
+            raise ConfigError("timeseries_transform_info entries must be TransformRecord or None.")
+    return records
+
+
 def _optional_tuple(value: object) -> tuple | None:
     if value is None:
         return None
@@ -1234,6 +1551,14 @@ def _transform_metadata(transform: TransformRecord | None) -> dict[str, Any]:
         "forward_transforms": _transform_files_metadata(transform.forward_transforms),
         "inverse_transforms": _transform_files_metadata(transform.inverse_transforms),
     }
+
+
+def _timeseries_transform_metadata(
+    transform_info: tuple[TransformRecord | None, ...] | None,
+) -> list[dict[str, Any] | None] | None:
+    if transform_info is None:
+        return None
+    return [None if record is None else _transform_metadata(record) for record in transform_info]
 
 
 def _transform_files_metadata(files: tuple[AntsTransformFile, ...]) -> list[dict[str, str]]:
@@ -1364,6 +1689,7 @@ def _metadata_text(image: BBImage) -> str:
         f"name: {image.name}",
         f"path: {image.path}",
         f"kind: {image.kind}",
+        f"frames: {image.n_frames}",
         "volume:",
         f"  data: {_matrix_summary(image.volume.data)}",
         f"  affine: {_matrix_summary(image.volume.affine)}",
@@ -1378,6 +1704,8 @@ def _metadata_text(image: BBImage) -> str:
         f"indices: {image.indices}",
         f"crop_info: {image.crop_info}",
         f"mask: {mask_text}",
+        "timeseries_transform_info: "
+        f"{_timeseries_transform_summary(image.timeseries_transform_info)}",
         *transform_lines,
     ]
     return "\n".join(lines)
@@ -1392,6 +1720,15 @@ def _volume_summary(volume: Volume | None) -> str:
     if volume is None:
         return "none"
     return f"data {_matrix_summary(volume.data)}, affine {_matrix_summary(volume.affine)}"
+
+
+def _timeseries_transform_summary(
+    transform_info: tuple[TransformRecord | None, ...] | None,
+) -> str:
+    if transform_info is None:
+        return "none"
+    n_transforms = sum(record is not None for record in transform_info)
+    return f"{n_transforms} transform(s) for {len(transform_info)} frame(s)"
 
 
 def _voxel_size_summary(affine: np.ndarray) -> tuple[float, ...]:
@@ -1488,6 +1825,8 @@ def _reslice_image(
 ) -> BBImage:
     if not isinstance(source, BBImage):
         raise ConfigError("reslice() source must be a BBImage.")
+    if source.volume.data.ndim != 3:
+        raise ConfigError("reslice() requires a 3D image. Use align_timeseries() for 4D data.")
     if source.transform_info is None:
         if interp is not None:
             normalize_ants_interpolator(interp)

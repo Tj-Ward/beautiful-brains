@@ -78,6 +78,69 @@ def test_load_intensity_and_slice(tmp_path):
     assert loaded.slice(5, plane="axial").size == (16, 18)
 
 
+def test_slice_display_overrides_do_not_mutate_metadata(tmp_path):
+    image = _intensity_image(tmp_path)
+    original_colormap = image.colormap
+    original_threshold = image.threshold
+
+    rendered = image.slice(
+        5,
+        plane="axial",
+        scale=2,
+        interp="NEAREST",
+        sharpen=50,
+        colormap="soft-gray",
+        threshold=(0, 100),
+    )
+
+    assert rendered.size == (16, 18)
+    assert image.scale == 3.0
+    assert image.interp == "BICUBIC"
+    assert image.sharpen == 0
+    assert image.colormap is original_colormap
+    assert image.threshold == original_threshold
+
+
+def test_load_4d_timeseries_and_slice_frames(tmp_path):
+    data = np.zeros((4, 5, 6, 3), dtype=np.float32)
+    data[:, :, :, 0] = 0
+    data[:, :, :, 1] = 50
+    data[:, :, :, 2] = 100
+    image = bb.load(_write_nifti(tmp_path / "pet.nii.gz", data), threshold=(0, 100), scale=1)
+
+    assert image.volume.data.shape == data.shape
+    assert image.is_timeseries is True
+    assert image.n_frames == 3
+    assert image.slice(2, plane="axial", frame=0).size == (4, 5)
+    assert image.slice(2, plane="axial", frame=2).size == (4, 5)
+
+    first = np.asarray(image.slice(2, plane="axial", frame=0))
+    last = np.asarray(image.slice(2, plane="axial", frame=2))
+    assert first[..., :3].max() < last[..., :3].max()
+
+    with pytest.raises(IndexError, match="Frame"):
+        image.slice(2, plane="axial", frame=3)
+
+
+def test_4d_mask_can_be_spatial_or_timeseries(tmp_path):
+    data = np.ones((4, 5, 6, 2), dtype=np.float32)
+    image = bb.load(_write_nifti(tmp_path / "masked_pet.nii.gz", data), threshold=(0, 1), scale=1)
+
+    spatial_mask = np.ones((4, 5, 6), dtype=np.float16)
+    spatial_mask[:2] = np.float16(0.25)
+    image.mask = spatial_mask
+    spatial_alpha = np.asarray(image.slice(2, plane="axial", frame=1))[..., 3]
+    assert spatial_alpha.min() < 255
+
+    timeseries_mask = np.ones(data.shape, dtype=np.float16)
+    timeseries_mask[:, :, :, 1] = np.float16(0.5)
+    image.mask = timeseries_mask
+    frame0_alpha = np.asarray(image.slice(2, plane="axial", frame=0))[..., 3]
+    frame1_alpha = np.asarray(image.slice(2, plane="axial", frame=1))[..., 3]
+    assert frame0_alpha.max() == 255
+    assert frame1_alpha.max() == 127
+
+
 def test_slice_respects_affine_spacing_and_resamples_mask_for_display(tmp_path):
     data = np.ones((8, 9, 10), dtype=np.float32)
     affine = np.diag([2, 1, 1, 1]).astype(np.float32)
@@ -648,6 +711,58 @@ def test_save_load_bbi_embeds_lazy_transform_template_geometry(monkeypatch, tmp_
 
     assert resliced.volume.data.shape == target.volume.data.shape
     assert np.all(resliced.volume.data == 3)
+
+
+def test_align_timeseries_aligns_each_frame_to_first(monkeypatch, tmp_path, capsys):
+    data = np.zeros((4, 5, 6, 3), dtype=np.float32)
+    data[:, :, :, 0] = 1
+    data[:, :, :, 1] = 2
+    data[:, :, :, 2] = 3
+    image = bb.load(_write_nifti(tmp_path / "timeseries.nii.gz", data), threshold=(0, 3))
+    calls = {"register": [], "apply": []}
+
+    def fake_register_ants_transform(**kwargs):
+        calls["register"].append(
+            (
+                float(np.asarray(kwargs["fixed"].data).mean()),
+                float(np.asarray(kwargs["moving"].data).mean()),
+                kwargs["warp"],
+            )
+        )
+        return AntsRegistrationResult(
+            forward_transforms=(AntsTransformFile("rigid.mat", b"rigid"),),
+            inverse_transforms=(),
+        )
+
+    def fake_apply_ants_transform(**kwargs):
+        calls["apply"].append(float(np.asarray(kwargs["moving"].data).mean()))
+        data = np.full(kwargs["fixed"].data.shape, kwargs["moving"].data.mean() + 10)
+        return image_from_volume_data(kwargs["fixed"], data=data)
+
+    monkeypatch.setattr(image_module, "register_ants_transform", fake_register_ants_transform)
+    monkeypatch.setattr(image_module, "apply_ants_transform", fake_apply_ants_transform)
+
+    aligned = bb.align_timeseries(image)
+    output = capsys.readouterr().out
+
+    assert "can be slow" in output
+    assert aligned.volume.data.shape == data.shape
+    assert np.all(aligned.volume.data[:, :, :, 0] == 1)
+    assert np.all(aligned.volume.data[:, :, :, 1] == 12)
+    assert np.all(aligned.volume.data[:, :, :, 2] == 13)
+    assert calls["register"] == [(1.0, 2.0, "Rigid"), (1.0, 3.0, "Rigid")]
+    assert calls["apply"] == [2.0, 3.0]
+    assert aligned.timeseries_transform_info is not None
+    assert len(aligned.timeseries_transform_info) == 3
+    assert aligned.timeseries_transform_info[0] is None
+    assert isinstance(aligned.timeseries_transform_info[1], image_module.TransformRecord)
+
+    saved = aligned.save(tmp_path / "aligned.bbi")
+    loaded = bb.load(saved)
+    assert loaded.timeseries_transform_info is not None
+    assert len(loaded.timeseries_transform_info) == 3
+    assert loaded.timeseries_transform_info[0] is None
+    assert isinstance(loaded.timeseries_transform_info[2], image_module.TransformRecord)
 
 
 def test_transform_and_apply_transform_are_lazy_and_preserve_mask(monkeypatch, tmp_path):

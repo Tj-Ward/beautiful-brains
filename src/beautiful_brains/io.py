@@ -48,8 +48,8 @@ def load_volume(path: Path, *, canonical: bool = True) -> Volume:
     if canonical:
         image = nib.as_closest_canonical(image)
     data = np.asarray(image.get_fdata(dtype=np.float32))
-    if data.ndim != 3:
-        raise ImageGeometryError(f"Only 3D images are supported right now: {path}")
+    if data.ndim not in {3, 4}:
+        raise ImageGeometryError(f"Only 3D or 4D images are supported right now: {path}")
     return Volume(path=path, image=image, data=data, affine=np.asarray(image.affine))
 
 
