@@ -76,40 +76,6 @@ PET_dynamic = bb.load(
 )
 ```
 
-
-    ---------------------------------------------------------------------------
-
-    ImageGeometryError                        Traceback (most recent call last)
-
-    Cell In[8], line 20
-         16   sharpen=0,
-         17   threshold=(100,10000)
-         18 )
-         19 
-    ---> 20 PET_dynamic = bb.load(
-         21   PET_DYNAMIC_PATH,
-         22   colormap="nih",
-         23   interp='NEAREST',
-
-
-    File ~/Documents/QC_images/beautiful-brains/src/beautiful_brains/image.py:566, in load(path, LUT, colormap, threshold, indices, scale, interp, sharpen, bias_correction, debug)
-        563     return _load_bbi(path, debug=debug)
-        565 _debug_print(debug, f"loading image: {path}")
-    --> 566 volume = load_volume(path)
-        567 _debug_print(debug, f"loaded image shape: {volume.data.shape}")
-        568 parsed_indices = _parse_indices(indices)
-
-
-    File ~/Documents/QC_images/beautiful-brains/src/beautiful_brains/io.py:52, in load_volume(path, canonical)
-         50 data = np.asarray(image.get_fdata(dtype=np.float32))
-         51 if data.ndim != 3:
-    ---> 52     raise ImageGeometryError(f"Only 3D images are supported right now: {path}")
-         53 return Volume(path=path, image=image, data=data, affine=np.asarray(image.affine))
-
-
-    ImageGeometryError: Only 3D images are supported right now: FBB_dynamic.nii
-
-
 ## Transformations
 
 First, I will register the PET to the MRI using rigid body transformation
