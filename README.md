@@ -1,5 +1,5 @@
 [![Beautiful-Brains logo](https://raw.githubusercontent.com/Tj-Ward/beautiful-brains/main/figures/logo.png)](https://github.com/Tj-Ward/beautiful-brains)
-
+![Top Langs](https://github-readme-stats-fast.vercel.app/api/top-langs/?username=Tj-Ward&v=2)
 # Beautiful Brains 
 
 
