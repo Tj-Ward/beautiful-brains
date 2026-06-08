@@ -22,6 +22,7 @@ Future Features:
 ```python
 import beautiful_brains as bb
 import inspect
+import numpy as np
 ```
 
 ### Define the path to your images
@@ -104,6 +105,16 @@ I can then apply that transformation matrix to other images in the same space
 PET = bb.apply_transform(source=PET,matrix=MRI.transform_info)
 ```
 
+I can also align all the images in a given timeseries.
+
+
+```python
+PET_dynamic = bb.align_timeseries(source=PET_dynamic,warp='Rigid')
+```
+
+    Caution: align_timeseries() can be slow because it computes one rigid-body alignment for every non-reference frame in the timeseries.
+
+
 ## Metadata
 This stores useful information about the image
 
@@ -116,6 +127,7 @@ MRI.metadata()
     name: MPRAGE.nii.gz
     path: MPRAGE.nii.gz
     kind: intensity
+    frames: 1
     volume:
       data: matrix shape=(208, 256, 256), dtype=float32
       affine: matrix shape=(4, 4), dtype=float64
@@ -130,6 +142,7 @@ MRI.metadata()
     indices: None
     crop_info: None
     mask: none
+    timeseries_transform_info: none
     transform:
       status: pending
       warp: Affine
@@ -153,6 +166,35 @@ print(type(PET.volume.affine), PET.volume.affine.shape)
     <class 'nibabel.nifti1.Nifti1Image'>
     <class 'numpy.ndarray'> (256, 256, 89)
     <class 'numpy.ndarray'> (4, 4)
+
+
+
+```python
+PET_dynamic.metadata()
+```
+
+    BBImage metadata
+    name: FBB_dynamic.nii
+    path: FBB_dynamic.nii
+    kind: intensity
+    frames: 8
+    volume:
+      data: matrix shape=(192, 192, 89, 8), dtype=float32
+      affine: matrix shape=(4, 4), dtype=float64
+      voxel_sizes: (1.333333, 1.333333, 2.779999)
+    display:
+      scale: 1.0
+      interp: NEAREST
+      sharpen: 0
+      colormap: nih
+      LUT: None
+      threshold: (100.0, 10000.0)
+    indices: None
+    crop_info: None
+    mask: none
+    timeseries_transform_info: 7 transform(s) for 8 frame(s)
+    transform:
+      status: none
 
 
 ## Reslicing
@@ -183,7 +225,7 @@ MRI.slice(80)
 
 
     
-![png](Demonstration_files/Demonstration_23_0.png)
+![png](Demonstration_files/Demonstration_26_0.png)
     
 
 
@@ -199,7 +241,7 @@ PET.slice(80)
 
 
     
-![png](Demonstration_files/Demonstration_24_0.png)
+![png](Demonstration_files/Demonstration_27_0.png)
     
 
 
@@ -214,7 +256,7 @@ PET.slice(80)
 
 
     
-![png](Demonstration_files/Demonstration_25_0.png)
+![png](Demonstration_files/Demonstration_28_0.png)
     
 
 
@@ -249,7 +291,7 @@ MRI.slice(80)
 
 
     
-![png](Demonstration_files/Demonstration_29_0.png)
+![png](Demonstration_files/Demonstration_32_0.png)
     
 
 
@@ -270,7 +312,7 @@ PET.slice(80)
 
 
     
-![png](Demonstration_files/Demonstration_32_0.png)
+![png](Demonstration_files/Demonstration_35_0.png)
     
 
 
@@ -292,7 +334,7 @@ PET_smoo.slice(80)
 
 
     
-![png](Demonstration_files/Demonstration_35_0.png)
+![png](Demonstration_files/Demonstration_38_0.png)
     
 
 
@@ -333,7 +375,7 @@ MRI.slice(80)
 
 
     
-![png](Demonstration_files/Demonstration_40_0.png)
+![png](Demonstration_files/Demonstration_43_0.png)
     
 
 
@@ -353,7 +395,7 @@ MRI.slice(80)
 
 
     
-![png](Demonstration_files/Demonstration_42_0.png)
+![png](Demonstration_files/Demonstration_45_0.png)
     
 
 
@@ -417,7 +459,7 @@ img
 
 
     
-![png](Demonstration_files/Demonstration_51_0.png)
+![png](Demonstration_files/Demonstration_54_0.png)
     
 
 
@@ -443,7 +485,7 @@ img
 
 
     
-![png](Demonstration_files/Demonstration_52_0.png)
+![png](Demonstration_files/Demonstration_55_0.png)
     
 
 
@@ -472,7 +514,7 @@ img
 
 
     
-![png](Demonstration_files/Demonstration_54_0.png)
+![png](Demonstration_files/Demonstration_57_0.png)
     
 
 
@@ -499,7 +541,7 @@ img
 
 
     
-![png](Demonstration_files/Demonstration_55_0.png)
+![png](Demonstration_files/Demonstration_58_0.png)
     
 
 
@@ -536,7 +578,7 @@ img
 
 
     
-![png](Demonstration_files/Demonstration_58_0.png)
+![png](Demonstration_files/Demonstration_61_0.png)
     
 
 
@@ -556,50 +598,157 @@ print(inspect.signature(bb.make_video))
     (frames: 'Iterable[Any]', timing: 'float', filepath: 'str | Path') -> 'Path'
 
 
+I'm going to create a short animation using 8 frames from a PET scan. 
+
+Before creating the movie, this scan needs to be preprocessed for visualization purposes.
+
+ - Align frames (already done above)
+ - Smooth
+ - Crop
+
 
 ```python
-
+PET_dynamic.slice(42,frame=i, plane="axial",alpha=1)
 ```
 
 
 
 
-    array([50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66,
-           67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83,
-           84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99])
+    
+![png](Demonstration_files/Demonstration_66_0.png)
+    
 
 
 
 
 ```python
-slices[:-1:][::-1]
+PET_dynamic = bb.crop(
+  PET_dynamic,
+  how="mean",
+  pad=4
+)
+```
+
+
+```python
+PET_dynamic.slice(42,frame=i, plane="axial",alpha=1)
 ```
 
 
 
 
-    array([99, 98, 97, 96, 95, 94, 93, 92, 91, 90, 89, 88, 87, 86, 85, 84, 83,
-           82, 81, 80, 79, 78, 77, 76, 75, 74, 73, 72, 71, 70, 69, 68, 67, 66,
-           65, 64, 63, 62, 61, 60, 59, 58, 57, 56, 55, 54, 53, 52, 51, 50])
+    
+![png](Demonstration_files/Demonstration_68_0.png)
+    
 
 
 
 
 ```python
-Ratio = PET.slice(120,'axial').size
-slices = list(np.arange(50,101,1))
-slices.extend(slices[:-1:][::-1])
-time = 0.1
+PET_dynamic = bb.smooth_image(source=PET_dynamic,kernel=8)
+PET_dynamic.slice(42,frame=i, plane="axial",alpha=1)
+```
+
+
+
+
+    
+![png](Demonstration_files/Demonstration_69_0.png)
+    
+
+
+
+
+```python
+pet_mask = bb.create_mask(
+  source=PET_dynamic,
+  pad=2,
+  cleanup=0,
+)
+```
+
+
+```python
+PET_dynamic.mask = pet_mask
+```
+
+
+```python
+Ratio = PET_dynamic.slice(50,'axial').size
+frame_count = PET_dynamic.volume.data.shape[-1]
+fig = bb.bbfigure(
+  size=1,
+  grid=(frame_count, 1),
+  dpi=2400,
+    box_ratio=(Ratio[0]/Ratio[1]),
+  background=(0, 0, 0, 0),
+)
+for i in np.arange(0,frame_count):
+    fig[i, 0] = PET_dynamic.slice(42,frame=i, plane="axial",alpha=1)
+img = fig.render()
+img
+```
+
+
+
+
+    
+![png](Demonstration_files/Demonstration_72_0.png)
+    
+
+
+
+
+```python
+Ratio = PET_dynamic.slice(50,'axial').size
+slices = list(np.arange(0,frame_count))
+#slices.extend(slices[:-1:][::-1])
+time = 0.2
 frames = []
-for i,slice_i in enumerate(slices):
+for i in np.arange(0,frame_count):
     fig = bb.bbfigure(
-      size=3,
+      size=1,
       grid=(1, 1),
       dpi=300,
         box_ratio=(Ratio[0]/Ratio[1]),
       background=(0, 0, 0, 0),
     )
-    fig[0, 0] = PET.slice(int(slice_i), "axial")
+    fig[0, 0] = PET_dynamic.slice(42,frame=i, plane="axial",alpha=1)
+    frames.append(fig)
+
+bb.make_video(frames,time,'pet_dynamic_video.webp')
+```
+
+
+
+
+    PosixPath('pet_dynamic_video.webp')
+
+
+
+
+```python
+
+```
+
+### Here, I create a small animated webp file for the github README.md
+
+
+```python
+Ratio = PET.slice(120,'axial').size
+slices = list(np.arange(50,111,1))
+slices.extend(slices[:-1:][::-1])
+time = 0.1
+frames = []
+for i,slice_i in enumerate(slices):
+    fig = bb.bbfigure(
+      size=0.1,
+      grid=(1, 1),
+      dpi=600,
+        box_ratio=(Ratio[0]/Ratio[1]),
+      background=(0, 0, 0, 0),
+    )
+    fig[0, 0] = PET.slice(int(slice_i), "axial",interp='LANCZOS')
     frames.append(fig)
 
 bb.make_video(frames,time,'video.webp')
@@ -635,7 +784,7 @@ bb.colorbar(colormap='nih', height=50, length=500)
 
 
     
-![png](Demonstration_files/Demonstration_67_0.png)
+![png](Demonstration_files/Demonstration_79_0.png)
     
 
 
@@ -650,7 +799,7 @@ bb.colorbar(colormap='soft-nih', height=50, length=500)
 
 
     
-![png](Demonstration_files/Demonstration_68_0.png)
+![png](Demonstration_files/Demonstration_80_0.png)
     
 
 
@@ -664,7 +813,7 @@ bb.colorbar(colormap='gray', height=50, length=500)
 
 
     
-![png](Demonstration_files/Demonstration_69_0.png)
+![png](Demonstration_files/Demonstration_81_0.png)
     
 
 
@@ -678,7 +827,7 @@ bb.colorbar(colormap='viridis', height=50, length=500)
 
 
     
-![png](Demonstration_files/Demonstration_70_0.png)
+![png](Demonstration_files/Demonstration_82_0.png)
     
 
 
@@ -692,7 +841,7 @@ bb.colorbar(colormap='plasma', height=50, length=500)
 
 
     
-![png](Demonstration_files/Demonstration_71_0.png)
+![png](Demonstration_files/Demonstration_83_0.png)
     
 
 
@@ -706,7 +855,7 @@ bb.colorbar(colormap='jet', height=50, length=500)
 
 
     
-![png](Demonstration_files/Demonstration_72_0.png)
+![png](Demonstration_files/Demonstration_84_0.png)
     
 
 
@@ -720,7 +869,7 @@ bb.colorbar(colormap='hot', height=50, length=500)
 
 
     
-![png](Demonstration_files/Demonstration_73_0.png)
+![png](Demonstration_files/Demonstration_85_0.png)
     
 
 
@@ -734,7 +883,7 @@ bb.colorbar(colormap='bone', height=50, length=500)
 
 
     
-![png](Demonstration_files/Demonstration_74_0.png)
+![png](Demonstration_files/Demonstration_86_0.png)
     
 
 
@@ -748,7 +897,7 @@ bb.colorbar(colormap='copper', height=50, length=500)
 
 
     
-![png](Demonstration_files/Demonstration_75_0.png)
+![png](Demonstration_files/Demonstration_87_0.png)
     
 
 
