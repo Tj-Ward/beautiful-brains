@@ -10,7 +10,7 @@
 
 Beautiful-Brains creates notebook-friendly NIfTI figures from intensity images, masks, and label maps.
 
-Beautiful-Brains provides a Python toolkit for loading, smoothing, transforming, coregistering, slicing, and compositing NIfTI images in Jupyter notebooks and Python scripts. Images are read with [NiBabel](https://nipy.org/nibabel/), processed with [NumPy](https://numpy.org/) and [SciPy](https://scipy.org/), and rendered with [Pillow](https://pillow.readthedocs.io/en/stable/). Registration, masking, and bias-field correction are performed with ANTsPy.
+Beautiful-Brains provides a Python toolkit for loading, smoothing, transforming, coregistering, slicing, and compositing NIfTI images in Jupyter notebooks and Python scripts. Images are read with [NiBabel](https://nipy.org/nibabel/), processed with [NumPy](https://numpy.org/) and [SciPy](https://scipy.org/), and rendered with [Pillow](https://pillow.readthedocs.io/en/stable/). Registration, masking, and bias-field correction are performed with [ANTsPy](https://antspy.readthedocs.io/en/stable/).
 
 ![Beautiful-Brains](https://github.com/Tj-Ward/beautiful-brains/blob/main/figures/video.webp)
 
