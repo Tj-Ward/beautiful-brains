@@ -719,17 +719,10 @@ for i in np.arange(0,frame_count):
 bb.make_video(frames,time,'pet_dynamic_video.webp')
 ```
 
-
-
-
     PosixPath('pet_dynamic_video.webp')
 
+![Beautiful-Brains](https://github.com/Tj-Ward/beautiful-brains/blob/main/figures/pet_dynamic_video.webp)
 
-
-
-```python
-
-```
 
 ### Here, I create a small animated webp file for the github README.md
 
